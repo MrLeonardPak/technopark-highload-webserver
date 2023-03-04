@@ -6,8 +6,9 @@ set(CMAKE_CXX_STANDARD 20)
 
 set(SOURCES
     src/server.cc
+    src/http.cc
+    src/config.cc
 )
-
 include(FetchContent)
 FetchContent_Declare (
     spdlog
@@ -16,11 +17,11 @@ FetchContent_Declare (
 )
 FetchContent_MakeAvailable(spdlog)
 
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")
+
 add_library(${PROJECT_NAME} STATIC ${SOURCES})
 target_include_directories(${PROJECT_NAME}
                             PUBLIC
-                            ${PROJECT_SOURCE_DIR}/inc/server
-                            PRIVATE
-                            ${PROJECT_SOURCE_DIR}/inc/private
+                            ${PROJECT_SOURCE_DIR}/inc
 )
-target_link_libraries(${PROJECT_NAME} PRIVATE spdlog::spdlog)
+target_link_libraries(${PROJECT_NAME} PUBLIC spdlog::spdlog)

@@ -3,6 +3,7 @@
 mkdir -p build
 cd build
 rm -rf CMakeFiles server
-cmake .. && \
+cmake -DCMAKE_BUILD_TYPE=Debug .. && \
+# cmake .. && \
 make && \
-sudo ./webserver-highloads
+sudo ./webserver-highload

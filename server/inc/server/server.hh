@@ -3,14 +3,17 @@
 
 #include <sstream>
 
+#include "server/config.hh"
+
 namespace server {
+
+size_t constexpr MAX_RECV_LEN = 1024;
 
 class Server {
  public:
-  Server(int aPort);
+  Server(int aPort, std::string const& aConfigPath);
   void Start();
 
-  size_t constexpr static sMaxRecvLen = 1024;
   static void Process(std::istream& in, std::ostream& out);
 
  private:

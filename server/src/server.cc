@@ -1,4 +1,4 @@
-#include "server.hh"
+#include "server/server.hh"
 
 #include <netinet/in.h>
 #include <string.h>
@@ -6,13 +6,22 @@
 #include <unistd.h>
 #include <iostream>
 
+#include "spdlog/spdlog.h"
+
+#include "server/config.hh"
+#include "server/http.hh"
+
 namespace server {
 
-void Hello() {
-  std::cout << "Hello" << std::endl;
+Server::Server(int aPort, std::string const& aConfigPath) : kPort(aPort) {
+  spdlog::set_pattern("[%H:%M:%S] [%^%l%$] [thread %t] %v");
+#ifdef DEBUG
+  spdlog::set_level(spdlog::level::debug);
+  spdlog::debug("DEBUG MODE");
+#endif
+  spdlog::debug("Path: {}", Config("document_root"));
+  spdlog::debug("Threads: {}", std::stoi(Config("thread_limit")));
 }
-
-Server::Server(int aPort) : kPort(aPort) {}
 
 void Server::Start() {
   if ((mSocketFD = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -38,14 +47,14 @@ void Server::Start() {
     throw std::runtime_error("Listen failed");
   }
 
-  char buffer[sMaxRecvLen];
+  char buffer[MAX_RECV_LEN];
   while (true) {
     if ((mSocket = accept(mSocketFD, reinterpret_cast<sockaddr*>(&address),
                           &addrlen)) < 0) {
       throw std::runtime_error("Accept failed");
     }
 
-    auto result = read(mSocket, buffer, sMaxRecvLen);
+    auto result = read(mSocket, buffer, MAX_RECV_LEN);
     switch (result) {
       case -1:
         throw std::runtime_error("Read failed");
@@ -54,6 +63,7 @@ void Server::Start() {
         throw std::runtime_error("Connection closed");
         break;
       default:
+        spdlog::debug("Raw request:\n{}", buffer);
         std::stringstream out;
         std::stringstream in{buffer};
         Process(in, out);
@@ -68,16 +78,20 @@ void Server::Start() {
 }
 
 void Server::Process(std::istream& in, std::ostream& out) {
-  while (in) {
-    std::string s;
-    std::getline(in, s);
-    std::cout << s << std::endl;
+  out << "HTTP/1.1 ";
+  try {
+    auto request = Request(in);
+    out << "200\r\n";
+  } catch (int code) {
+    out << code << "\r\n";
   }
 
-  out << "HTTP/1.1 200 OK\r\n"
-      << "Version: HTTP/1.1\r\n"
-      << "Content-Type: text/html; charset=utf-8\r\n"
-      << "Content-Length: " << 0 << "\r\n\r\n";
+  auto date =
+      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+
+  auto tm = std::gmtime(&date);
+  out << HTTP_GEN_SERVER_HEADER() << HTTP_GEN_DATE_HEADER()
+      << HTTP_GEN_CONNECTION_HEADER() << "\r\n";
 }
 
 }  // namespace server
