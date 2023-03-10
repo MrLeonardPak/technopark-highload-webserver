@@ -8,6 +8,7 @@ set(SOURCES
     src/server.cc
     src/http.cc
     src/config.cc
+    src/file.cc
 )
 include(FetchContent)
 FetchContent_Declare (

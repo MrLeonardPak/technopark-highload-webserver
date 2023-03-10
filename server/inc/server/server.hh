@@ -14,7 +14,7 @@ class Server {
   Server(int aPort, std::string const& aConfigPath);
   void Start();
 
-  static void Process(std::istream& in, std::ostream& out);
+  static void Process(std::istream& in, int aSocket);
 
  private:
   int const kPort;

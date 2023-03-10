@@ -15,20 +15,20 @@ std::string HTTP_GEN_DATE_HEADER() noexcept {
   auto tm = std::gmtime(&date);
   std::stringstream ss;
   ss << "Date: "
-     << std::put_time(std::gmtime(&date), "%a, %d %b %Y %H:%M:%S %Z") << "\r\n";
+     << std::put_time(std::gmtime(&date), "%a, %d %b %Y %H:%M:%S %Z") << CRLF;
   return ss.str();
 }
 
 std::string HTTP_GEN_SERVER_HEADER() noexcept {
-  return "Server: C++ with thread pool\r\n";
+  return "Server: C++ with thread pool" + CRLF;
 }
 std::string HTTP_GEN_CONNECTION_HEADER() noexcept {
-  return "Connection: close\r\n";
+  return "Connection: close" + CRLF;
 }
 
 std::string HTTP_GEN_CONTENT_TYPE(std::string const& type) noexcept {
   try {
-    return "Content-Type: " + MIME.at(type) + "\r\n";
+    return "Content-Type: " + MIME.at(type) + CRLF;
   } catch (std::out_of_range) {
     return "";
   }
@@ -36,7 +36,7 @@ std::string HTTP_GEN_CONTENT_TYPE(std::string const& type) noexcept {
 
 std::string HTTP_GEN_CONTENT_LENGTH(int len) noexcept {
   std::stringstream ss;
-  ss << "Content-Length: " << len << "\r\n";
+  ss << "Content-Length: " << len << CRLF;
   return ss.str();
 }
 
@@ -70,7 +70,6 @@ std::string PercentDecode(std::string_view str) {
 Request::Method ParseMethod(std::istream& in) {
   std::string method;
   in >> method;
-  spdlog::debug("Method: {}", method);
   if (method == "HEAD") {
     return Request::HEAD;
   } else if (method == "GET") {
@@ -108,6 +107,30 @@ Request::Request(std::istream& in)
   spdlog::debug("Method: {}", mMethod);
   spdlog::debug("Location: {}", mLocation.native());
   spdlog::debug("---------------------------");
+}
+
+Request::Method Request::getMethod() const {
+  return mMethod;
+}
+std::filesystem::path Request::getLocation() const {
+  return mLocation;
+}
+
+std::string Response::BuildErrorResponse(int aStatusCode) {
+  return HTTP_VERSION + ' ' + STATUS.at(aStatusCode) + CRLF +
+         HTTP_GEN_SERVER_HEADER() + HTTP_GEN_DATE_HEADER() +
+         HTTP_GEN_CONNECTION_HEADER() + CRLF;
+}
+
+Response::Response(Request const& aRequest) : mRequest(aRequest) {
+  mHeaders +=
+      HTTP_GEN_CONTENT_TYPE(mRequest.getLocation().extension().string());
+  mHeaders += HTTP_GEN_CONTENT_LENGTH(
+      std::filesystem::file_size(mRequest.getLocation()));
+}
+
+std::string Response::getInfo() const {
+  return mStatusLine + mHeaders + CRLF;
 }
 
 }  // namespace server

@@ -9,6 +9,7 @@
 #include "spdlog/spdlog.h"
 
 #include "server/config.hh"
+#include "server/file.hh"
 #include "server/http.hh"
 
 namespace server {
@@ -63,11 +64,8 @@ void Server::Start() {
         throw std::runtime_error("Connection closed");
         break;
       default:
-        spdlog::debug("Raw request:\n{}", buffer);
-        std::stringstream out;
         std::stringstream in{buffer};
-        Process(in, out);
-        send(mSocket, out.str().c_str(), out.str().length(), 0);
+        Process(in, mSocket);
         break;
     }
 
@@ -77,21 +75,18 @@ void Server::Start() {
   shutdown(mSocketFD, SHUT_RDWR);
 }
 
-void Server::Process(std::istream& in, std::ostream& out) {
-  out << "HTTP/1.1 ";
+void Server::Process(std::istream& aIN, int aSocket) {
   try {
-    auto request = Request(in);
-    out << "200\r\n";
-  } catch (int code) {
-    out << code << "\r\n";
+    auto request = Request(aIN);
+    auto response = Response(request);
+    send(aSocket, response.getInfo().data(), response.getInfo().length(), 0);
+    if (request.getMethod() == Request::GET) {
+      FileSend(aSocket, request.getLocation());
+    }
+  } catch (int errorCode) {
+    auto errorResponse = Response::BuildErrorResponse(errorCode);
+    send(aSocket, errorResponse.data(), errorResponse.length(), 0);
   }
-
-  auto date =
-      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-
-  auto tm = std::gmtime(&date);
-  out << HTTP_GEN_SERVER_HEADER() << HTTP_GEN_DATE_HEADER()
-      << HTTP_GEN_CONNECTION_HEADER() << "\r\n";
 }
 
 }  // namespace server
