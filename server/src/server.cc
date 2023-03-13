@@ -1,10 +1,8 @@
 #include "server/server.hh"
 
 #include <netinet/in.h>
-#include <string.h>
 #include <sys/socket.h>
-#include <unistd.h>
-#include <iostream>
+#include <array>
 
 #include "spdlog/spdlog.h"
 
@@ -14,14 +12,15 @@
 
 namespace server {
 
-Server::Server(int aPort, std::string const& aConfigPath) : kPort(aPort) {
+Server::Server(int aPort, std::unique_ptr<ITaskManager> aTaskManager)
+    : kPort(aPort), mTaskMenager(std::move(aTaskManager)) {
   spdlog::set_pattern("[%H:%M:%S] [%^%l%$] [thread %t] %v");
 #ifdef DEBUG
   spdlog::set_level(spdlog::level::debug);
   spdlog::debug("DEBUG MODE");
 #endif
-  spdlog::debug("Path: {}", Config("document_root"));
-  spdlog::debug("Threads: {}", std::stoi(Config("thread_limit")));
+  spdlog::debug("Path: {}", Config<std::string>("document_root"));
+  spdlog::debug("Threads: {}", Config<int>("thread_limit"));
 }
 
 void Server::Start() {
@@ -48,14 +47,15 @@ void Server::Start() {
     throw std::runtime_error("Listen failed");
   }
 
-  char buffer[MAX_RECV_LEN];
+  int socketD;
+  std::array<char, MAX_RECV_LEN> buffer;
   while (true) {
-    if ((mSocket = accept(mSocketFD, reinterpret_cast<sockaddr*>(&address),
+    if ((socketD = accept(mSocketFD, reinterpret_cast<sockaddr*>(&address),
                           &addrlen)) < 0) {
       throw std::runtime_error("Accept failed");
     }
 
-    auto result = read(mSocket, buffer, MAX_RECV_LEN);
+    auto result = read(socketD, buffer.data(), MAX_RECV_LEN);
     switch (result) {
       case -1:
         throw std::runtime_error("Read failed");
@@ -64,29 +64,27 @@ void Server::Start() {
         throw std::runtime_error("Connection closed");
         break;
       default:
-        std::stringstream in{buffer};
-        Process(in, mSocket);
+        mTaskMenager->AddTask([socketD, buffer]() {
+          std::stringstream in{buffer.cbegin()};
+          try {
+            auto request = Request(in);
+            auto response = Response(request);
+            send(socketD, response.getInfo().data(),
+                 response.getInfo().length(), 0);
+            if (request.getMethod() == Request::GET) {
+              FileSend(socketD, request.getLocation());
+            }
+          } catch (int errorCode) {
+            auto errorResponse = Response::BuildErrorResponse(errorCode);
+            send(socketD, errorResponse.data(), errorResponse.length(), 0);
+          }
+          close(socketD);
+        });
         break;
     }
-
-    close(mSocket);
   }
 
   shutdown(mSocketFD, SHUT_RDWR);
-}
-
-void Server::Process(std::istream& aIN, int aSocket) {
-  try {
-    auto request = Request(aIN);
-    auto response = Response(request);
-    send(aSocket, response.getInfo().data(), response.getInfo().length(), 0);
-    if (request.getMethod() == Request::GET) {
-      FileSend(aSocket, request.getLocation());
-    }
-  } catch (int errorCode) {
-    auto errorResponse = Response::BuildErrorResponse(errorCode);
-    send(aSocket, errorResponse.data(), errorResponse.length(), 0);
-  }
 }
 
 }  // namespace server

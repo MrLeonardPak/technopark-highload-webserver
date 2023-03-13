@@ -9,6 +9,7 @@ set(SOURCES
     src/http.cc
     src/config.cc
     src/file.cc
+    src/thread.cc
 )
 include(FetchContent)
 FetchContent_Declare (
@@ -18,6 +19,9 @@ FetchContent_Declare (
 )
 FetchContent_MakeAvailable(spdlog)
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -DDEBUG")
 
 add_library(${PROJECT_NAME} STATIC ${SOURCES})
@@ -25,4 +29,4 @@ target_include_directories(${PROJECT_NAME}
                             PUBLIC
                             ${PROJECT_SOURCE_DIR}/inc
 )
-target_link_libraries(${PROJECT_NAME} PUBLIC spdlog::spdlog)
+target_link_libraries(${PROJECT_NAME} PUBLIC spdlog::spdlog Threads::Threads)

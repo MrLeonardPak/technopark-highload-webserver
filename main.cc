@@ -1,9 +1,11 @@
-#include "server/server.hh"
-
 #include <chrono>
 #include <iostream>
 #include <memory>
 #include <thread>
+
+#include "server/config.hh"
+#include "server/server.hh"
+#include "server/thread.hh"
 
 int constexpr RESTART_TIME_SEC = 3;
 
@@ -11,7 +13,9 @@ int main() {
   using namespace std::chrono_literals;
   while (1) {
     try {
-      std::make_unique<server::Server>(80, "")->Start();
+      auto pool = std::make_unique<server::ThreadPool>(
+          server::Config<int>("thread_limit"));
+      std::make_unique<server::Server>(80, std::move(pool))->Start();
     } catch (std::exception const& e) {
       std::clog << e.what() << std::endl;
     }

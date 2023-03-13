@@ -15,9 +15,16 @@ std::unordered_map<std::string, std::string> ConfigGen(std::string_view path) {
   return res;
 }
 
+template <>
 std::string Config(std::string_view key) {
   static auto configMap = ConfigGen(CONFIG_PATH);
   return configMap[key.data()];
+}
+
+template <>
+int Config(std::string_view key) {
+  static auto configMap = ConfigGen(CONFIG_PATH);
+  return std::stoi(configMap[key.data()]);
 }
 
 }  // namespace server

@@ -1,7 +1,6 @@
 #include "server/http.hh"
 
 #include <chrono>
-#include <iomanip>
 
 #include "spdlog/spdlog.h"
 
@@ -85,17 +84,27 @@ std::filesystem::path ParseLocation(std::istream& in) {
   location = PercentDecode(location);
   location = location.substr(0, location.find('?'));
 
-  auto path = std::filesystem::weakly_canonical(Config(ROOT_CONF) + location);
-  if (!IsSubpath(path, Config(ROOT_CONF))) {
+  auto path = std::filesystem::weakly_canonical(Config<std::string>(ROOT_CONF) +
+                                                location);
+  if (!IsSubpath(path, Config<std::string>(ROOT_CONF))) {
     spdlog::debug("Out of root: {}", path.native());
     throw 403;
   }
   if (path.extension().native().empty()) {
-    path += "/index.html";
+    if (!std::filesystem::exists(path)) {
+      spdlog::debug("Not found directory: {}", path.native());
+      throw 404;
+    }
+    try {
+      return std::filesystem::canonical(path / "index.html");
+    } catch (std::filesystem::filesystem_error) {
+      spdlog::debug("Forbidden index: {}", path.native());
+      throw 403;
+    }
   }
   try {
     return std::filesystem::canonical(path);
-  } catch (std::exception) {
+  } catch (std::filesystem::filesystem_error) {
     spdlog::debug("No file: {}", path.native());
     throw 404;
   }
