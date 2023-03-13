@@ -2,6 +2,7 @@
 
 #include <fcntl.h>
 #include <sys/sendfile.h>
+#include <unistd.h>
 
 namespace server {
 
@@ -20,5 +21,6 @@ void FileSend(int aSocket, std::filesystem::path const& aPath) {
     sizeToSend -= res;
     offset += res;
   }
+  close(fd);
 }
 }  // namespace server

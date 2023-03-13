@@ -59,9 +59,9 @@ void Server::Start() {
     switch (result) {
       case -1:
         throw std::runtime_error("Read failed");
-        break;
       case 0:
-        throw std::runtime_error("Connection closed");
+        // throw std::runtime_error("Connection closed");
+        close(socketD);
         break;
       default:
         mTaskMenager->AddTask([socketD, buffer]() {
