@@ -7,7 +7,7 @@
 
 namespace server {
 
-void Handler(int aSocket, buffet_t const& aBuffer);
+void Handler(int aSocket);
 
 }  // namespace server
 

@@ -14,14 +14,14 @@ class ThreadPool {
   ThreadPool(unsigned int aMaxThread);
   ~ThreadPool() = default;
 
-  void AddTask(int aSockerD, std::array<char, MAX_RECV_LEN> const& aBuffer);
+  void AddTask(int aSockerD);
 
  private:
-  std::vector<std::jthread> mThreads;
-  std::queue<std::pair<int, std::array<char, MAX_RECV_LEN>>> mTaskQueue;
+  std::vector<std::thread> mThreads;
+  std::queue<int> mTaskQueue;
   std::mutex mMutex;
   std::condition_variable mCV;
-  // std::atomic_flag mLock;
+  size_t count = 0;
 
   void ThreadMain();
 };

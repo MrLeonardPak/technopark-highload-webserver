@@ -7,30 +7,23 @@
 namespace server {
 
 ThreadPool::ThreadPool(unsigned int aMaxThread) {
-  if (std::thread::hardware_concurrency() < aMaxThread) {
-    aMaxThread = std::thread::hardware_concurrency();
-    spdlog::warn(
-        "Max number of threads in current system is {}. {} threads are "
-        "forcibly set.",
-        aMaxThread, aMaxThread);
-  };
   mThreads.reserve(aMaxThread);
   for (size_t i = 0; i < aMaxThread; ++i) {
     mThreads.emplace_back(&ThreadPool::ThreadMain, this);
   }
 }
 
-void ThreadPool::AddTask(int aSockerD,
-                         std::array<char, MAX_RECV_LEN> const& aBuffer) {
+void ThreadPool::AddTask(int aSockerD) {
   auto lock = std::lock_guard(mMutex);
-  mTaskQueue.emplace(aSockerD, aBuffer);
+  mTaskQueue.emplace(aSockerD);
+  spdlog::debug("Queue size {}", mTaskQueue.size());
   mCV.notify_one();
 }
 
 void ThreadPool::ThreadMain() {
-  int i = 0;
+  std::this_thread::sleep_for(std::chrono::milliseconds(30));
   while (true) {
-    std::pair<int, buffet_t> taskPayload;
+    int taskPayload;
     {
       auto lock = std::unique_lock(mMutex);
 
@@ -38,11 +31,8 @@ void ThreadPool::ThreadMain() {
       taskPayload = mTaskQueue.front();
       mTaskQueue.pop();
     }
-#ifndef Debug
-    pthread_yield();
-#endif  // Debug
-    Handler(taskPayload.first, taskPayload.second);
-    spdlog::debug("Task {}", mTaskQueue.size());
+    Handler(taskPayload);
+    spdlog::debug("Count {}", ++count);
   }
 }
 

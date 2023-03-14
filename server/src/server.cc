@@ -20,11 +20,11 @@ Server::Server(int aPort) : kPort(aPort) {
   spdlog::debug("DEBUG MODE");
 #endif
   spdlog::debug("Path: {}", Config<std::string>("document_root"));
-  spdlog::debug("Threads: {}", Config<int>("thread_limit"));
+  spdlog::warn("Threads: {}", Config<int>("thread_limit"));
 }
 
 void Server::Start() {
-  if ((mSocketFD = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+  if ((mSocketFD = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
     throw std::runtime_error("Socket failed");
   }
 
@@ -43,30 +43,19 @@ void Server::Start() {
   if (bind(mSocketFD, reinterpret_cast<sockaddr*>(&address), addrlen) < 0) {
     throw std::runtime_error("Bind failed");
   }
-  if (listen(mSocketFD, 3) < 0) {
+  if (listen(mSocketFD, SOMAXCONN) < 0) {
     throw std::runtime_error("Listen failed");
   }
 
-  int socketD;
+  int newSocket;
   std::array<char, MAX_RECV_LEN> buffer;
   auto threadPool = ThreadPool(Config<int>("thread_limit"));
   while (true) {
-    if ((socketD = accept(mSocketFD, reinterpret_cast<sockaddr*>(&address),
-                          &addrlen)) < 0) {
+    if ((newSocket = accept(mSocketFD, reinterpret_cast<sockaddr*>(&address),
+                            &addrlen)) < 0) {
       throw std::runtime_error("Accept failed");
     }
-
-    auto result = read(socketD, buffer.data(), MAX_RECV_LEN);
-    switch (result) {
-      case -1:
-        throw std::runtime_error("Read failed");
-      case 0:
-        close(socketD);
-        break;
-      default:
-        threadPool.AddTask(socketD, buffer);
-        break;
-    }
+    threadPool.AddTask(newSocket);
   }
 
   shutdown(mSocketFD, SHUT_RDWR);

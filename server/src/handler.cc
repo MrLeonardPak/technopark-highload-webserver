@@ -9,31 +9,39 @@
 
 namespace server {
 
-void Handler(int aSocket, buffet_t const& aBuffer) {
-  std::stringstream in{aBuffer.cbegin()};
+void Handler(int aSocket) {
+  std::array<char, MAX_RECV_LEN> buffer;
   try {
-    auto request = Request(in);
-    auto responseRaw = Response(request).getInfo();
-    if (auto err = send(aSocket, responseRaw.data(), responseRaw.length(),
-                        MSG_NOSIGNAL);
-        err == -1) {
-      if (errno == EPIPE) {
-        spdlog::warn("EPIPE send");
+    auto result = read(aSocket, buffer.data(), MAX_RECV_LEN);
+    switch (result) {
+      case -1:
+        throw std::runtime_error("Read failed");
+      case 0:
         goto close_socket;
-      }
-      throw std::runtime_error("send error: " + std::to_string(errno));
-    }
+      default: {
+        std::stringstream in{buffer.cbegin()};
+        auto request = Request(in);
+        auto responseRaw = Response(request).getInfo();
+        if (send(aSocket, responseRaw.data(), responseRaw.length(),
+                 MSG_NOSIGNAL) == -1) {
+          if (errno == EPIPE) {
+            spdlog::warn("EPIPE send");
+            goto close_socket;
+          }
+          throw std::runtime_error("send error: " + std::to_string(errno));
+        }
 
-    if (request.getMethod() == Request::GET) {
-      FileSend(aSocket, request.getLocation());
+        if (request.getMethod() == Request::GET) {
+          FileSend(aSocket, request.getLocation());
+        }
+        break;
+      }
     }
 
   } catch (int errorCode) {
     auto errorResponse = Response::BuildErrorResponse(errorCode);
-    send(aSocket, errorResponse.data(), errorResponse.length(), MSG_NOSIGNAL);
-    if (auto err = send(aSocket, errorResponse.data(), errorResponse.length(),
-                        MSG_NOSIGNAL);
-        err == -1) {
+    if (send(aSocket, errorResponse.data(), errorResponse.length(),
+             MSG_NOSIGNAL) == -1) {
       if (errno == EPIPE) {
         spdlog::warn("EPIPE send error");
         goto close_socket;
