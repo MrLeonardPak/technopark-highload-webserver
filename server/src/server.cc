@@ -9,11 +9,11 @@
 #include "server/config.hh"
 #include "server/file.hh"
 #include "server/http.hh"
+#include "server/thread.hh"
 
 namespace server {
 
-Server::Server(int aPort, std::unique_ptr<ITaskManager> aTaskManager)
-    : kPort(aPort), mTaskMenager(std::move(aTaskManager)) {
+Server::Server(int aPort) : kPort(aPort) {
   spdlog::set_pattern("[%H:%M:%S] [%^%l%$] [thread %t] %v");
 #ifdef DEBUG
   spdlog::set_level(spdlog::level::debug);
@@ -49,6 +49,7 @@ void Server::Start() {
 
   int socketD;
   std::array<char, MAX_RECV_LEN> buffer;
+  auto threadPool = ThreadPool(Config<int>("thread_limit"));
   while (true) {
     if ((socketD = accept(mSocketFD, reinterpret_cast<sockaddr*>(&address),
                           &addrlen)) < 0) {
@@ -63,40 +64,7 @@ void Server::Start() {
         close(socketD);
         break;
       default:
-        mTaskMenager->AddTask([socketD, buffer]() {
-          std::stringstream in{buffer.cbegin()};
-          try {
-            auto request = Request(in);
-            auto responseRaw = Response(request).getInfo();
-            if (auto err = send(socketD, responseRaw.data(),
-                                responseRaw.length(), MSG_NOSIGNAL);
-                err == -1) {
-              if (errno == EPIPE) {
-                spdlog::warn("EPIPE send");
-                goto close_socket;
-              }
-              throw std::runtime_error("send error: " + std::to_string(errno));
-            }
-            if (request.getMethod() == Request::GET) {
-              FileSend(socketD, request.getLocation());
-            }
-          } catch (int errorCode) {
-            auto errorResponse = Response::BuildErrorResponse(errorCode);
-            send(socketD, errorResponse.data(), errorResponse.length(),
-                 MSG_NOSIGNAL);
-            if (auto err = send(socketD, errorResponse.data(),
-                                errorResponse.length(), MSG_NOSIGNAL);
-                err == -1) {
-              if (errno == EPIPE) {
-                spdlog::warn("EPIPE send error");
-                goto close_socket;
-              }
-              throw std::runtime_error("send error: " + std::to_string(errno));
-            }
-          }
-        close_socket:
-          close(socketD);
-        });
+        threadPool.AddTask(socketD, buffer);
         break;
     }
   }

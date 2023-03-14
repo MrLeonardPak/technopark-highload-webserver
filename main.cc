@@ -15,9 +15,7 @@ int main() {
   signal(SIGPIPE, SIG_IGN);
   while (1) {
     try {
-      auto pool = std::make_unique<server::ThreadPool>(
-          server::Config<int>("thread_limit"));
-      std::make_unique<server::Server>(80, std::move(pool))->Start();
+      std::make_unique<server::Server>(80)->Start();
     } catch (std::exception const& e) {
       std::cout << e.what() << std::endl;
     }

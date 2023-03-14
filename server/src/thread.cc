@@ -1,6 +1,8 @@
 #include "server/thread.hh"
 
-#include <spdlog/spdlog.h>
+#include "spdlog/spdlog.h"
+
+#include "server/handler.hh"
 
 namespace server {
 
@@ -18,9 +20,10 @@ ThreadPool::ThreadPool(unsigned int aMaxThread) {
   }
 }
 
-void ThreadPool::AddTask(task_t aTask) {
+void ThreadPool::AddTask(int aSockerD,
+                         std::array<char, MAX_RECV_LEN> const& aBuffer) {
   auto lock = std::lock_guard(mMutex);
-  mTaskQueue.push(aTask);
+  mTaskQueue.emplace(aSockerD, aBuffer);
   mCV.notify_one();
 }
 
@@ -28,11 +31,24 @@ void ThreadPool::ThreadMain() {
   int i = 0;
   while (true) {
     auto lock = std::unique_lock(mMutex);
-    while (mTaskQueue.empty()) {
-      mCV.wait(lock);
-    }
-    mTaskQueue.front()();
+
+    mCV.wait(lock, [&]() { return !mTaskQueue.empty(); });
+    Handler(mTaskQueue.front().first, mTaskQueue.front().second);
     mTaskQueue.pop();
+
+    std::pair<int, buffet_t> taskPayload;
+    {
+      auto lock = std::unique_lock(mMutex);
+
+      mCV.wait(lock, [&]() { return !mTaskQueue.empty(); });
+      taskPayload = mTaskQueue.front();
+      mTaskQueue.pop();
+    }
+#ifndef Debug
+    pthread_yield();
+#endif  // Debug
+    Handler(taskPayload.first, taskPayload.second);
+    spdlog::debug("Task {}", mTaskQueue.size());
   }
 }
 

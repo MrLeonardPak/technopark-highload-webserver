@@ -25,8 +25,13 @@ void FileSend(int aSocket, std::filesystem::path const& aPath) {
         }
         throw std::runtime_error("Sendfile error: " + std::to_string((errno)));
       }
+      if (res == 0 || res > sizeToSend) {
+        spdlog::error("sizeToSend: {} res: {}", sizeToSend, res);
+        goto exit;
+      }
       sizeToSend -= res;
       offset += res;
+      spdlog::debug("sizeToSend: {} res: {}", sizeToSend, res);
     }
   }
 
