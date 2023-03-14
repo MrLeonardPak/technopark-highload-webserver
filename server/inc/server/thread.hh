@@ -10,7 +10,7 @@
 namespace server {
 class ThreadPool : public ITaskManager {
  public:
-  ThreadPool(uint aMaxThread);
+  ThreadPool(unsigned int aMaxThread);
   ~ThreadPool() = default;
 
   void AddTask(task_t aTask) override;
@@ -20,7 +20,6 @@ class ThreadPool : public ITaskManager {
   std::queue<task_t> mTaskQueue;
   std::mutex mMutex;
   std::condition_variable mCV;
-  bool mPingPong = false;
   // std::atomic_flag mLock;
 
   void ThreadMain();

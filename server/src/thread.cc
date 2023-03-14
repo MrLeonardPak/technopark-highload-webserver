@@ -4,7 +4,7 @@
 
 namespace server {
 
-ThreadPool::ThreadPool(uint aMaxThread) {
+ThreadPool::ThreadPool(unsigned int aMaxThread) {
   if (std::thread::hardware_concurrency() < aMaxThread) {
     aMaxThread = std::thread::hardware_concurrency();
     spdlog::warn(
@@ -21,7 +21,6 @@ ThreadPool::ThreadPool(uint aMaxThread) {
 void ThreadPool::AddTask(task_t aTask) {
   auto lock = std::lock_guard(mMutex);
   mTaskQueue.push(aTask);
-  mPingPong = true;
   mCV.notify_one();
 }
 
@@ -29,10 +28,9 @@ void ThreadPool::ThreadMain() {
   int i = 0;
   while (true) {
     auto lock = std::unique_lock(mMutex);
-    while (!mPingPong) {
+    while (mTaskQueue.empty()) {
       mCV.wait(lock);
     }
-    mPingPong = false;
     mTaskQueue.front()();
     mTaskQueue.pop();
   }

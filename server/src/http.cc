@@ -1,6 +1,7 @@
 #include "server/http.hh"
 
 #include <chrono>
+#include <fstream>
 
 #include "spdlog/spdlog.h"
 

@@ -60,7 +60,6 @@ void Server::Start() {
       case -1:
         throw std::runtime_error("Read failed");
       case 0:
-        // throw std::runtime_error("Connection closed");
         close(socketD);
         break;
       default:
@@ -68,16 +67,34 @@ void Server::Start() {
           std::stringstream in{buffer.cbegin()};
           try {
             auto request = Request(in);
-            auto response = Response(request);
-            send(socketD, response.getInfo().data(),
-                 response.getInfo().length(), 0);
+            auto responseRaw = Response(request).getInfo();
+            if (auto err = send(socketD, responseRaw.data(),
+                                responseRaw.length(), MSG_NOSIGNAL);
+                err == -1) {
+              if (errno == EPIPE) {
+                spdlog::warn("EPIPE send");
+                goto close_socket;
+              }
+              throw std::runtime_error("send error: " + std::to_string(errno));
+            }
             if (request.getMethod() == Request::GET) {
               FileSend(socketD, request.getLocation());
             }
           } catch (int errorCode) {
             auto errorResponse = Response::BuildErrorResponse(errorCode);
-            send(socketD, errorResponse.data(), errorResponse.length(), 0);
+            send(socketD, errorResponse.data(), errorResponse.length(),
+                 MSG_NOSIGNAL);
+            if (auto err = send(socketD, errorResponse.data(),
+                                errorResponse.length(), MSG_NOSIGNAL);
+                err == -1) {
+              if (errno == EPIPE) {
+                spdlog::warn("EPIPE send error");
+                goto close_socket;
+              }
+              throw std::runtime_error("send error: " + std::to_string(errno));
+            }
           }
+        close_socket:
           close(socketD);
         });
         break;
