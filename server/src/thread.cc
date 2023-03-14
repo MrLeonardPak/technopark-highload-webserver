@@ -30,12 +30,6 @@ void ThreadPool::AddTask(int aSockerD,
 void ThreadPool::ThreadMain() {
   int i = 0;
   while (true) {
-    auto lock = std::unique_lock(mMutex);
-
-    mCV.wait(lock, [&]() { return !mTaskQueue.empty(); });
-    Handler(mTaskQueue.front().first, mTaskQueue.front().second);
-    mTaskQueue.pop();
-
     std::pair<int, buffet_t> taskPayload;
     {
       auto lock = std::unique_lock(mMutex);
