@@ -20,7 +20,7 @@ Server::Server(int aPort) : kPort(aPort) {
   spdlog::debug("DEBUG MODE");
 #endif
   spdlog::debug("Path: {}", Config<std::string>("document_root"));
-  spdlog::warn("Threads: {}", Config<int>("thread_limit"));
+  spdlog::info("Threads: {}", Config<int>("thread_limit"));
 }
 
 void Server::Start() {

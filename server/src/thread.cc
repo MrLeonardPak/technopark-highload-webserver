@@ -21,7 +21,6 @@ void ThreadPool::AddTask(int aSockerD) {
 }
 
 void ThreadPool::ThreadMain() {
-  std::this_thread::sleep_for(std::chrono::milliseconds(30));
   while (true) {
     int taskPayload;
     {

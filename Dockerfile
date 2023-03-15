@@ -10,7 +10,7 @@
 # ENTRYPOINT ["./webserver-highload"]
 
 FROM gcc:11
-RUN apt-get update && apt-get install -y cmake libspdlog-dev
+RUN apt-get update && apt-get install -y cmake libspdlog-dev htop
 COPY . /var/app
 WORKDIR /var/app/build
 RUN cmake .. && make

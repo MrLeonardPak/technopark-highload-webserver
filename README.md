@@ -19,7 +19,7 @@ cd http-test-suit
 ## Load testing
 > NEED TO ADD PORT
 ``` bash
-ab -n 10000 -c 100 -s 5 127.0.0.1:PORT/httptest/wikipedia_russia.html
+ab -n 100000 -c 100 -s 5 127.0.0.1/httptest/wikipedia_russia.html
 ```
 ## Result
 #### 1 threads
