@@ -19,15 +19,13 @@ cd http-test-suit
 ## Load testing
 > NEED TO ADD PORT
 ``` bash
-ab -n 10000 -c 100 -s 1 127.0.0.1:PORT/httptest/wikipedia_russia.html
+ab -n 10000 -c 100 -s 5 127.0.0.1:PORT/httptest/wikipedia_russia.html
 ```
 ## Result
-#### 2 threads
-![](imgs/2-threads.png)
+#### 1 threads
+![](imgs/1-thread.png)
 #### 12 threads
-![](imgs/12-threads.png)
-#### 32 threads
-![](imgs/32-threads.png)
+![](imgs/8-threads.png)
 #### Nginx result (for compare)
 ``` bash
 docker run --name highload-nginx-test -v $(pwd)/nginx.conf:/etc/nginx/nginx.conf:ro -v $(pwd)/http-test-suite:/var/www/html:ro -d --rm -p 9090:80 nginx:stable
